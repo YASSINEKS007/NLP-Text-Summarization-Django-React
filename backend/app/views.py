@@ -204,3 +204,18 @@ def get_summaries(request):
     summaries = Summary.objects.all()
     serializer = SummarySerializer(summaries, many=True)
     return Response({"summaries": serializer.data}, status=status.HTTP_200_OK)
+
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def delete_summary(request, id):
+    try:
+        summary = Summary.objects.get(id=id)
+    except Summary.DoesNotExist:
+        return Response({"message": "Summary not found"}, status=status.HTTP_404_NOT_FOUND)
+    
+    summary.delete()
+    
+    return Response({"message": "Summary deleted successfully"}, status=status.HTTP_200_OK)

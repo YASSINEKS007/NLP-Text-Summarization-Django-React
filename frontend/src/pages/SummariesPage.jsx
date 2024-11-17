@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import NavBar from "../components/NavBar";
 import SummaryCard from "../components/SummaryCard";
 import api from "../services/api";
+import { ToastContainer } from "react-toastify";
+import { toast, Bounce } from "react-toastify";
 
 const SummariesPage = () => {
   const [summaries, setSummaries] = useState([]);
@@ -13,7 +15,6 @@ const SummariesPage = () => {
       const response = await api.get("generate-summary/summaries/");
       const data = response.data;
 
-      // Check if data.summaries exists and is an array, then set the state
       if (Array.isArray(data.summaries)) {
         setSummaries(data.summaries);
       } else {
@@ -24,7 +25,17 @@ const SummariesPage = () => {
       }
       console.log("summaries : ", data.summaries);
     } catch (err) {
-      console.error("Error fetching summaries: ", err);
+      toast.error(err.data.message, {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+        transition: Bounce,
+      });
     }
   };
 
@@ -34,6 +45,7 @@ const SummariesPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600">
       <NavBar />
+      <ToastContainer />
       <div className="flex items-center justify-center mt-6">
         <Box
           display="grid"
@@ -54,7 +66,9 @@ const SummariesPage = () => {
                 source={(summary.text_source != null
                   ? summary.text_source
                   : summary.pdf_or_word_file
-                ).substring(0, 30)}
+                ).substring(0, 20)}
+                date={summary.summary_date}
+                reloadSummaries={fetchSummaries}
               />
             ))
           ) : (
