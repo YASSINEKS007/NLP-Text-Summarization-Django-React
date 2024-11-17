@@ -1,0 +1,75 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+env/
+venv/
+.venv/
+
+# Poetry files
+.poetry/
+
+# Django stuff:
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+db.sqlite3
+
+# Django migrations
+*/migrations/*
+!.gitkeep
+
+# Media files (e.g. profile pictures or uploads)
+media/
+
+# Static files
+staticfiles/
+static/
+
+# Local environment settings
+.env
+.env.*
+
+# IDE files
+.vscode/
+.idea/
+
+# macOS specific
+.DS_Store
+
+# JetBrains
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# PyCharm specific
+*.idea/
+
+# Python files
+*.egg-info/
+*.eggs/
+
+# pipenv/poetry files
+Pipfile.lock
+poetry.lock
+
+# Coverage reports
+htmlcov/
+.coverage
+*.cover
+
+# Test results
+*.test_report/
+junit.xml
+coverage.xml
+
+venv*
+
+glove.6B.100d.txt
