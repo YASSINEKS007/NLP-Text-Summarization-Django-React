@@ -7,6 +7,7 @@ import { useDropzone } from "react-dropzone";
 import { Bounce, toast, ToastContainer } from "react-toastify";
 import NavBar from "../components/NavBar";
 import api from "../services/api";
+import { useNavigate } from "react-router-dom";
 
 const HomePage = () => {
   const [summaryLength, setSummaryLength] = useState(10);
@@ -29,6 +30,7 @@ const HomePage = () => {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [openBackDrop, setOpenBackDrop] = useState(false);
+  const navigate = useNavigate();
 
   const handleClose = () => {
     setOpenBackDrop(false);
@@ -147,6 +149,8 @@ const HomePage = () => {
         theme: "colored",
         transition: Bounce,
       });
+      navigate("/summaries");
+
     } catch (err) {
       toast.error(
         "An error occurred while summarizing the text. Please try again.",

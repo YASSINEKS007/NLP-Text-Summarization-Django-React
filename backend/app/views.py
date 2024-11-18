@@ -1,10 +1,10 @@
+import json
 import os
 import re
 from textwrap import dedent
 
 import google.generativeai as genai
 import networkx as nx
-import json
 import numpy as np
 import pandas as pd
 import PyPDF2
@@ -190,7 +190,6 @@ def generate_summary_document(request):
 
         Summary.objects.create(
             user=user, summary_text=summary["summary"], summary_title=summary['title'], pdf_or_word_file=f"File: {file.name}")
-        
 
         return Response({"summary": summary}, status=status.HTTP_201_CREATED)
 
@@ -208,7 +207,6 @@ def get_summaries(request):
     return Response({"summaries": serializer.data}, status=status.HTTP_200_OK)
 
 
-
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
 @authentication_classes([JWTAuthentication])
@@ -217,7 +215,20 @@ def delete_summary(request, id):
         summary = Summary.objects.get(id=id)
     except Summary.DoesNotExist:
         return Response({"message": "Summary not found"}, status=status.HTTP_404_NOT_FOUND)
-    
+
     summary.delete()
-    
+
     return Response({"message": "Summary deleted successfully"}, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def get_summary(request, id):
+    try:
+        summary = Summary.objects.get(id=id)
+    except Summary.DoesNotExist:
+        return Response({"message": "Summary not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = SummarySerializer(summary)
+    return Response({"summaries": serializer.data}, status=status.HTTP_200_OK)

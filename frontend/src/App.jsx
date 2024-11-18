@@ -10,12 +10,13 @@ import NotAuthorized from "./pages/NotAuthorized";
 import RegisterPage from "./pages/RegisterPage";
 import SettingsPage from "./pages/SettingsPage";
 import SummariesPage from "./pages/SummariesPage";
+import SummaryDetailPage from "./pages/SummaryDetailPage";
 
 function App() {
   const mode = useSelector((state) => state.mode);
   const theme = useMemo(() => createTheme(themeSettings(mode)), [mode]);
 
-  const isAuthenticated = localStorage.getItem("accessToken");
+  const isAuthenticated = useSelector((state) => state.accessToken != null);
 
   return (
     <ThemeProvider theme={theme}>
@@ -41,6 +42,12 @@ function App() {
           <Route
             path="/settings"
             element={isAuthenticated ? <SettingsPage /> : <NotAuthorized />}
+          />
+          <Route
+            path="/summaries/:id"
+            element={
+              isAuthenticated ? <SummaryDetailPage /> : <NotAuthorized />
+            }
           />
         </Routes>
       </BrowserRouter>

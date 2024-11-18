@@ -70,6 +70,7 @@ const SummariesPage = () => {
                 )}
                 date={summary.summary_date}
                 reloadSummaries={fetchSummaries}
+                
               />
             ))}
           </Box>
