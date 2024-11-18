@@ -1,26 +1,70 @@
-import { useState } from "react";
 import { Button, TextField, Typography } from "@mui/material";
+import Backdrop from "@mui/material/Backdrop";
+import CircularProgress from "@mui/material/CircularProgress";
 import Slider from "@mui/material/Slider";
+import { useState } from "react";
 import { useDropzone } from "react-dropzone";
+import { Bounce, toast, ToastContainer } from "react-toastify";
 import NavBar from "../components/NavBar";
 import api from "../services/api";
 
 const HomePage = () => {
-  const [summaryLength, setSummaryLength] = useState(50); // Default summary length
-  const [textToSummarize, setTextToSummarize] = useState(""); // State for text input
-  const { getRootProps, getInputProps, open, acceptedFiles } = useDropzone();
+  const [summaryLength, setSummaryLength] = useState(10);
+  const [textToSummarize, setTextToSummarize] = useState("");
+  const {
+    getRootProps,
+    getInputProps,
+    open: openFileDialog,
+    acceptedFiles,
+  } = useDropzone({
+    accept: {
+      "application/pdf": [".pdf"],
+      "text/plain": [".txt"],
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        [".docx"],
+    },
+    noClick: true,
+    noKeyboard: true,
+  });
+
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [openBackDrop, setOpenBackDrop] = useState(false);
+
+  const handleClose = () => {
+    setOpenBackDrop(false);
+  };
+
+  const handleOpen = () => {
+    setOpenBackDrop(true);
+  };
 
   const files = acceptedFiles.map((file) => (
-    <li key={file.path} className="text-sm text-gray-700">
+    <li
+      key={file.path}
+      className="text-sm text-gray-700"
+    >
       {file.path} - {file.size} bytes
     </li>
   ));
 
   const handleFileSubmit = async () => {
     if (acceptedFiles.length === 0) {
-      alert("No file selected.");
+      toast.warn("No file selected.", {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+        transition: Bounce,
+      });
       return;
     }
+
+    setIsGenerating(true);
+    handleOpen();
 
     const file = acceptedFiles[0];
     const formData = new FormData();
@@ -34,16 +78,57 @@ const HomePage = () => {
         },
       });
       console.log("File summary response:", response.data);
+      toast.success("File summarization completed successfully!", {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+        transition: Bounce,
+      });
     } catch (err) {
+      toast.error(
+        "An error occurred while summarizing the file. Please try again.",
+        {
+          position: "top-center",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+          transition: Bounce,
+        }
+      );
       console.error("Error summarizing file:", err);
+    } finally {
+      setIsGenerating(false);
+      handleClose();
     }
   };
 
   const handleTextSubmit = async () => {
     if (!textToSummarize.trim()) {
-      alert("Text to summarize is empty.");
+      toast.warn("Text to summarize is empty.", {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+        transition: Bounce,
+      });
       return;
     }
+
+    setIsGenerating(true);
+    handleOpen();
 
     try {
       const response = await api.post("generate-summary/text/", {
@@ -51,8 +136,36 @@ const HomePage = () => {
         summary_len: summaryLength,
       });
       console.log("Text summary response:", response.data);
+      toast.success("Text summarization completed successfully!", {
+        position: "top-center",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+        transition: Bounce,
+      });
     } catch (err) {
+      toast.error(
+        "An error occurred while summarizing the text. Please try again.",
+        {
+          position: "top-center",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+          transition: Bounce,
+        }
+      );
       console.error("Error summarizing text:", err);
+    } finally {
+      setIsGenerating(false);
+      handleClose();
     }
   };
 
@@ -68,6 +181,14 @@ const HomePage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600">
       <NavBar />
+      <ToastContainer />
+      <Backdrop
+        sx={(theme) => ({ color: "#fff", zIndex: theme.zIndex.drawer + 1 })}
+        open={openBackDrop}
+        onClick={handleClose}
+      >
+        <CircularProgress color="inherit" />
+      </Backdrop>
       <div className="flex flex-col items-center justify-center mt-2 px-4">
         <div className="w-full max-w-lg p-8 bg-white rounded-xl shadow-2xl">
           <div
@@ -89,7 +210,7 @@ const HomePage = () => {
             <Button
               variant="contained"
               color="primary"
-              onClick={open}
+              onClick={openFileDialog}
               size="large"
               sx={{
                 boxShadow: 3,
@@ -106,7 +227,10 @@ const HomePage = () => {
 
           {acceptedFiles.length > 0 && (
             <aside className="mt-6">
-              <Typography variant="h6" className="font-medium text-gray-700">
+              <Typography
+                variant="h6"
+                className="font-medium text-gray-700"
+              >
                 Uploaded Files:
               </Typography>
               <ul className="mt-2 space-y-1">{files}</ul>
@@ -139,7 +263,7 @@ const HomePage = () => {
               Summary Length
             </Typography>
             <Slider
-              defaultValue={50}
+              defaultValue={10}
               aria-label="Summary Length"
               valueLabelDisplay="auto"
               value={summaryLength}

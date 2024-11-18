@@ -183,12 +183,14 @@ def generate_summary_document(request):
 
         # Generate the summary
         summary = generate_summary(extracted_text, summary_len=summary_len)
+        print(summary)
 
         # Save the summary to the database
         user = request.user
 
         Summary.objects.create(
-            user=user, summary_text=summary["summary"], summary_title=summary['title'], text_source=f"File: {file.name}")
+            user=user, summary_text=summary["summary"], summary_title=summary['title'], pdf_or_word_file=f"File: {file.name}")
+        
 
         return Response({"summary": summary}, status=status.HTTP_201_CREATED)
 

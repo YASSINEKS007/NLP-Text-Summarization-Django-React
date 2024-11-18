@@ -118,7 +118,7 @@ const logoutUser = () => {
   console.log("Logging out user and redirecting to login page...");
   localStorage.removeItem("accessToken");
   localStorage.removeItem("refreshToken");
-  window.location.href = "/login"; // Redirect to login
+  window.location.href = "/"; // Redirect to login
 };
 
 export default api;

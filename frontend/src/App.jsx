@@ -6,13 +6,16 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { themeSettings } from "./core/theme/theme";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
+import NotAuthorized from "./pages/NotAuthorized";
+import RegisterPage from "./pages/RegisterPage";
 import SettingsPage from "./pages/SettingsPage";
 import SummariesPage from "./pages/SummariesPage";
-import RegisterPage from "./pages/RegisterPage";
 
 function App() {
   const mode = useSelector((state) => state.mode);
   const theme = useMemo(() => createTheme(themeSettings(mode)), [mode]);
+
+  const isAuthenticated = localStorage.getItem("accessToken");
 
   return (
     <ThemeProvider theme={theme}>
@@ -29,15 +32,15 @@ function App() {
           />
           <Route
             path="/home"
-            element={<HomePage />}
+            element={isAuthenticated ? <HomePage /> : <NotAuthorized />}
           />
           <Route
             path="/summaries"
-            element={<SummariesPage />}
+            element={isAuthenticated ? <SummariesPage /> : <NotAuthorized />}
           />
           <Route
             path="/settings"
-            element={<SettingsPage />}
+            element={isAuthenticated ? <SettingsPage /> : <NotAuthorized />}
           />
         </Routes>
       </BrowserRouter>

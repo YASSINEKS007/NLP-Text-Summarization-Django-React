@@ -115,7 +115,7 @@ const SummaryCard = ({ id, textTitle, summary, source, date, reloadSummaries }) 
         flexDirection="column"
         gap={2}
         width="100%"
-        justifyContent="flex-end" // Position buttons at the bottom
+        justifyContent="flex-end" 
       >
         <Button
           variant="outlined"
