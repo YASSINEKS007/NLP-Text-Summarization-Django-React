@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import NavBar from "../components/NavBar";
+import { setLogout } from "../store/state";
+import { useNavigate } from "react-router-dom";
 const SettingsPage = () => {
   const user = useSelector((state) => state.user);
-  console.log("user : ", user);
   const [userData, setUserData] = useState(user);
+  const navigate = useNavigate();
 
+  const dispatch = useDispatch();
   const [editData, setEditData] = useState({ ...userData });
   const [isEditing, setIsEditing] = useState(false);
 
@@ -144,7 +147,12 @@ const SettingsPage = () => {
             </button>
           )}
           <button
-            onClick={() => console.log("Logged out")}
+            onClick={() => {
+              dispatch(setLogout());
+              localStorage.removeItem("accessToken");
+              localStorage.removeItem("refreshToken");
+              navigate("/");
+            }}
             className="ml-auto px-6 py-2 bg-red-500 text-white font-semibold rounded-md hover:bg-red-600"
           >
             Logout

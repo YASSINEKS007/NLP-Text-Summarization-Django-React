@@ -1,4 +1,4 @@
-import { Box, useMediaQuery } from "@mui/material";
+import { Box, useMediaQuery, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { BookLoader } from "react-awesome-loaders";
 import { Bounce, toast, ToastContainer } from "react-toastify";
@@ -42,6 +42,7 @@ const SummariesPage = () => {
   useEffect(() => {
     fetchSummaries();
   }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600">
       <NavBar />
@@ -70,20 +71,25 @@ const SummariesPage = () => {
                 )}
                 date={summary.summary_date}
                 reloadSummaries={fetchSummaries}
-                
               />
             ))}
           </Box>
         ) : (
-          <BookLoader
-            background={"linear-gradient(135deg, #6066FA, #4645F6)"}
-            desktopSize={"100px"}
-            mobileSize={"80px"}
-            textColor={"#4645F6"}
-          />
+          <div className="flex flex-col items-center">
+            <BookLoader
+              background={"linear-gradient(135deg, #6066FA, #4645F6)"}
+              desktopSize={"100px"}
+              mobileSize={"80px"}
+              textColor={"#4645F6"}
+            />
+            <Typography variant="h6" color="text.secondary" mt={4}>
+              No summaries are available yet.
+            </Typography>
+          </div>
         )}
       </div>
     </div>
   );
 };
+
 export default SummariesPage;
