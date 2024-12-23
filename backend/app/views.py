@@ -1,51 +1,53 @@
 import json
 import os
 import re
-from textwrap import dedent
-
-import google.generativeai as genai
 import networkx as nx
-import numpy as np
 import pandas as pd
 import PyPDF2
 from docx import Document
 from dotenv import load_dotenv
 from nltk.corpus import stopwords
 from nltk.tokenize import sent_tokenize
+from openai import OpenAI
 from rest_framework import status
 from rest_framework.decorators import (api_view, authentication_classes,
                                        parser_classes, permission_classes)
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import  IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from sentence_transformers import SentenceTransformer
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
 from sklearn.metrics.pairwise import cosine_similarity
 
 from .models import Summary
 from .serializers import SummarySerializer
 
-# Ensure nltk stopwords are downloaded
-# nltk.download('stopwords')
-
-# Load word embeddings
+load_dotenv()
 
 
-def load_word_embeddings(file_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), './glove.6B.100d.txt')):
-    word_embeddings = {}
-    with open(file_path, encoding='utf-8') as f:
-        for line in f:
-            values = line.split()
-            word = values[0]
-            coefs = np.asarray(values[1:], dtype='float32')
-            word_embeddings[word] = coefs
-    return word_embeddings
+
+model = SentenceTransformer('bert-base-nli-mean-tokens')
+
 
 
 def remove_stopwords(sentence, stop_words):
     return " ".join([word for word in sentence.split() if word not in stop_words])
 
-# Clean the summary text
+def find_braces_indices(s):
+    first_open = s.find('{')  # Find the first occurrence of '{'
+    last_close = s.rfind('}')  # Find the last occurrence of '}'
 
+    if first_open == -1 or last_close == -1:
+        return None  # Return None if either '{' or '}' is not found
+
+    return first_open, last_close
+
+
+def get_json_from_markdown(str_json):
+    first_open, last_close = find_braces_indices(str_json)
+    return json.loads(str_json[first_open:last_close+1])
 
 def clean_summary(text):
     # Replace \x93 and \x94 with "
@@ -59,84 +61,91 @@ def clean_summary(text):
     return cleaned_text.strip()
 
 
-def get_gemini_response(input_text):
-    try:
-        model = genai.GenerativeModel('gemini-pro')
-        response = model.generate_content([input_text])
-        return response.text
-    except Exception as e:
-        print("Error connecting to Gemini AI:", e)
 
 
-load_dotenv()
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-word_embeddings = load_word_embeddings()
-
-
-def generate_summary(text: str, summary_len: int):
+def generate_summary(text: str):
+    
     sentences = sent_tokenize(text)
     clean_sentences = pd.Series(sentences).str.replace(
         "[^a-zA-Z ]", " ", regex=True)
-    clean_sentences = [s.lower().strip() for s in clean_sentences]
 
+    clean_sentences = [s.lower().strip() for s in clean_sentences]
     stop_words = set(stopwords.words('english'))
     clean_sentences = [remove_stopwords(
         sentence, stop_words) for sentence in clean_sentences]
+    sentence_vectors = model.encode(clean_sentences)
+    num_sentences = len(sentence_vectors)
+    best_num_clusters = 1
+    best_score = -1
+    for n_clusters in range(2, min(10, num_sentences)):
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+        labels = kmeans.fit_predict(sentence_vectors)
+        score = silhouette_score(sentence_vectors, labels)
+        if score > best_score:
+            best_num_clusters = n_clusters
+            best_score = score
+    kmeans = KMeans(n_clusters=best_num_clusters, random_state=42)
+    labels = kmeans.fit_predict(sentence_vectors)
+    clustered_sentences = {}
+    for idx, label in enumerate(labels):
+        if label not in clustered_sentences:
+            clustered_sentences[label] = []
+        clustered_sentences[label].append((sentences[idx], idx))
+    summaries = []
+    for cluster, cluster_sentences in clustered_sentences.items():
+        cluster_indices = [s[1] for s in cluster_sentences]
+        sim_mat = cosine_similarity(sentence_vectors[cluster_indices])
+        # Rank sentences using PageRank
+        nx_graph = nx.from_numpy_array(sim_mat)
+        scores = nx.pagerank(nx_graph)
+        ranked_cluster_sentences = sorted(
+            ((scores[i], s[0]) for i, s in enumerate(cluster_sentences)), reverse=True
+        )
+        # Select the top sentences from the cluster
+        top_sentences = [ranked_cluster_sentences[i][1]
+                         for i in range(min(10, len(ranked_cluster_sentences)))]
+        summaries.append(" ".join(top_sentences))
 
-    # Sentence vectorization
-    sentence_vectors = []
-    for sentence in clean_sentences:
-        if len(sentence) > 0:
-            v = sum([word_embeddings.get(word, np.zeros((100,)))
-                    for word in sentence.split()]) / (len(sentence.split()) + 0.001)
-        else:
-            v = np.zeros((100,))
-        sentence_vectors.append(v)
+        cleaned_summary = clean_summary("\n\n".join(summaries))
+        client = OpenAI(
+            base_url="https://integrate.api.nvidia.com/v1",
+            api_key=os.getenv('NVIDIA_API_KEY')
+        )
 
-    # Cosine similarity
-    sim_mat = np.zeros([len(sentences), len(sentences)])
-    for i in range(len(sentences)):
-        for j in range(len(sentences)):
-            if i != j:
-                sim_mat[i][j] = cosine_similarity(sentence_vectors[i].reshape(
-                    1, -1), sentence_vectors[j].reshape(1, -1))[0, 0]
+        # Generate the improved summary using the LLM
+        completion = client.chat.completions.create(
+            model="nvidia/llama-3.1-nemotron-70b-instruct",
+            messages=[{
+                "role": "user",
+                "content": (
+                        f"Please refine the following summary by performing the following steps:\n"
+                        f"1. Expand on the key points with more detailed explanations and relevant examples, ensuring a deeper understanding of the topic.\n"
+                        f"2. Provide clear context where needed, explaining the significance of the points to improve clarity for a broad audience.\n"
+                        f"3. Use engaging and accessible language, avoiding jargon or overly complex terms, so the content is easy to read and understand.\n"
+                        f"4. Ensure the final version is concise, ideally within 4 to 5 sentences, while still covering all major points.\n"
+                        f"5. Return a JSON object containing the following fields:\n"
+                        f"   - \"title\": A brief, descriptive title or heading summarizing the main theme.\n"
+                        f"   - \"summary\": The refined and improved text of the summary.\n\n"
+                        f"Original summary:\n{cleaned_summary}\n\n"
+                        f"Please only return the JSON object, without any additional commentary or explanation."
+                )
+            }],
+            temperature=0.3,
+            top_p=1,
+            max_tokens=1024,
+            stream=False
+        )
 
-    # Pagerank
-    nx_graph = nx.from_numpy_array(sim_mat)
-    scores = nx.pagerank(nx_graph)
-    ranked_sentences = sorted(
-        ((scores[i], s) for i, s in enumerate(sentences)), reverse=True)
+        # Extract and clean the LLM response
+        llm_response = completion.choices[0].message.content.strip()
 
-    # Generate and clean summary
-    summary = " ".join([ranked_sentences[i][1]
-                       for i in range(min(10, len(ranked_sentences)))])
-    cleaned_summary = clean_summary(summary)
+        first_open, last_close = find_braces_indices(str(llm_response))
 
-    enhanced_summary = get_gemini_response(dedent(f"""
-        Refine the summary generated by the TextRank algorithm by performing the following steps:
-
-        1. Expand on the key points with detailed explanations to provide depth and clarity. 
-        2. Add context and relevant examples to ensure the information is engaging and easy to understand. 
-        3. Write in clear, natural, and accessible language, avoiding jargon or overly complex terms. 
-        4. Limit the summary to {summary_len} sentences and ensure it is written as a single cohesive paragraph.
-
-        Return the result as a valid JSON object with the following structure:
-        {{
-            "title": "Your Summary Title",
-            "summary": "Your Improved Summary Text"
-        }}
-
-        Original summary: {cleaned_summary}
-    """))
-
-
-    # Remove the Markdown code block formatting
-    json_str = enhanced_summary.strip('```json\n').strip('```')
-
-    # Parse the JSON string
-    json_data = json.loads(json_str)
-
-    return json_data
+        # # Step 1: Clean invalid newlines in the response
+        # cleaned_response = clean_json_markdown(str(llm_response))
+        # cleaned_response
+        my_summary = json.loads(str(llm_response)[first_open: last_close+1])
+        return my_summary
 
 
 @api_view(["POST"])
@@ -145,7 +154,7 @@ def generate_summary(text: str, summary_len: int):
 def generate_summary_text(request):
     text_to_summarize = request.data.get("text_to_summarize")
     summary_len = request.data.get('summary_len')
-    summary = generate_summary(text_to_summarize, summary_len=summary_len)
+    summary = generate_summary(text_to_summarize)
 
     user = request.user
 
@@ -185,7 +194,7 @@ def generate_summary_document(request):
                             status=status.HTTP_400_BAD_REQUEST)
 
         # Generate the summary
-        summary = generate_summary(extracted_text, summary_len=summary_len)
+        summary = generate_summary(extracted_text)
         print(summary)
 
         # Save the summary to the database
