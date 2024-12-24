@@ -225,6 +225,16 @@ By combining the precision of extractive methods, the fluency of generative tech
 
 ## Screenshots
 
+- **Login Page**
+  ![Login Page](./imgs/Login-Page.png)
+
+  - The Login page where users can sign in to our platform.
+
+- **Register Page**
+  ![Register Page](./imgs/Register-Page.png)
+
+  - The Register page where users can sign up to our platform.
+
 - **Main Page**
   ![Main Page](./imgs/Main-Page.png)
 
